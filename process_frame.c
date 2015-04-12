@@ -215,7 +215,33 @@ void calculateMC(void)
 }
 
 void findMax(void){
-    
+
+    int c,r = 0;
+
+    /*Find Max in x direction*/
+    for(r=nc *(Border +1);r<nr*nc -nc *(Border + 1);r+= nc){
+        for(c = Border +1;c< nc- (Border +1);c++){
+             /*do pointer arithmetics with respect to center pixel location*/
+            int *p = &avgDxy[2][r+c];
+            int tmp = avgDxy[2][r+c];
+            int i;
+            for(int i = -6;i<7;i++){
+
+
+            }
+
+
+
+         }
+    } 
+
+
+
+
+
+
+
+
     int c,r = 0;
 
     /*Find Max in x direction*/
