@@ -14,7 +14,8 @@
 #include <stdlib.h>
 
 #define IMG_SIZE NUM_COLORS*(OSC_CAM_MAX_IMAGE_WIDTH/2)*(OSC_CAM_MAX_IMAGE_HEIGHT/2)
-#define GAUSS
+#define SLOW
+#define SENSITIVITY 15
 const int nc = OSC_CAM_MAX_IMAGE_WIDTH/2;
 const int nr = OSC_CAM_MAX_IMAGE_HEIGHT/2;
 const int Border = 6;
@@ -23,6 +24,8 @@ int avgDxy[3][IMG_SIZE];
 
 
 int TextColor;
+
+int myVal = 0;
 
 void CalcDeriv(void);
 void AvgDeriv(int Index);
@@ -45,7 +48,6 @@ void ProcessFrame()
 {
 
 	uint32 t1, t2;
-//	char Text[] = "hallo world";
 	//initialize counters
 	if(data.ipc.state.nStepCounter == 1) {
 		//use for initialization; only done in first step
@@ -64,19 +66,9 @@ void ProcessFrame()
         findMax();
         drawBoxes();
         t2 = OscSupCycGet();
-
-		//example for log output to console
+	//example for log output to console
 		OscLog(INFO, "required = %d us\n", OscSupCycToMicroSecs(t2-t1));
-/*
-		//example for drawing output
-		//draw line
-		DrawLine(10, 100, 200, 20, RED);
-		//draw open rectangle
-		DrawBoundingBox(20, 10, 50, 40, false, GREEN);
-		//draw filled rectangle
-		DrawBoundingBox(80, 100, 110, 120, true, BLUE);
-		DrawString(200, 200, strlen(Text), TINY, TextColor, Text);
-*/
+
         }
    
 
@@ -103,20 +95,11 @@ void CalcDeriv(void)
             avgDxy[0][r+c] = dx*dx;
             avgDxy[1][r+c] = dy*dy;   
             avgDxy[2][r+c] = dx*dy;
-            
-
-          
-    //        data.u8TempImage[BACKGROUND][r+c] = (uint8)MAX(0,MIN(255,(avgDxy[2][r+c]>>10)));
-//            data.u8TempImage[THRESHOLD][r+c]=(uint8)MAX(0,MIN(255,(avgDxy[1][r+c]>>10)));
- 
-            
-
         }
     }
-
 }
 
-#ifdef GAUSS
+#ifdef SLOW
 
 
 void AvgDeriv(int Index)
@@ -144,16 +127,12 @@ void AvgDeriv(int Index)
             int sy = (*(p-6*nc) + *(p+6*nc))*1 + (*(p-5*nc) + *(p+5*nc))*4 + (*(p-4*nc) + *(p+4*nc))*11 +
                 (*(p-3*nc) + *(p+3*nc))*27 + (*(p-2*nc) + *(p+2*nc))*50 + (*(p-1*nc) + *(p+1*nc))*72 + (*p)*82;
             //now averaged
-            avgDxy[Index][r+c] = (sy>>8);
-//            data.u8TempImage[BACKGROUND][r+c] = MAX(0,MIN(255,(avgDxy[2][r+c]>>11)));          
+            avgDxy[Index][r+c] = (sy>>8);          
         }
     }
-
-   
-    
-
 }            
 #else
+
 void AvgDeriv(int Index)
 {
     //do average in x-direction
@@ -181,13 +160,9 @@ void AvgDeriv(int Index)
             int sy =  (*(p-6*nc) + *(p+6*nc)) + ((*(p-5*nc) + *(p+5*nc))<<2) + ((*(p-4*nc) + *(p+4*nc))<<3) +
                 ((*(p-3*nc) + *(p+3*nc))<<5) + ((*(p-2*nc) + *(p+2*nc)) <<6) + ((*(p-1*nc) + *(p+1*nc))<<6) + (*p<<7);
             //now averaged
-            avgDxy[Index][r+c] = (sy>>8);
-            
+            avgDxy[Index][r+c] = (sy>>8);            
         }
-    }
-
-
-   
+    }   
 }
 #endif
 
@@ -209,7 +184,7 @@ void calculateMC(void)
             int dIxy = (avgDxy[2][r+c] >> 7);
 
             avgDxy[2][r+c] = ((dIx2*dIy2)-dIxy*dIxy)-((5*(dIx2+dIy2)*(dIx2+dIy2))>>7);
-//            data.u8TempImage[BACKGROUND][r+c] = MAX(0,MIN(255,(avgDxy[2][r+c]>>10))); 
+//          data.u8TempImage[BACKGROUND][r+c] = MAX(0,MIN(255,(avgDxy[2][r+c]>>10))); 
    
          }
     } 
@@ -231,6 +206,7 @@ void findMax(void){
                 for(rm = -6;rm<7;rm++){
                     if(tmp < *((p+rm)+nc*cm)){
                         avgDxy[0][r+c] = 0;
+                      
                         rm = 8;
                         cm = 8;
                     }else{
@@ -239,68 +215,31 @@ void findMax(void){
                 }
 
             }
-//            data.u8TempImage[BACKGROUND][r+c] = MAX(0,MIN(255,(avgDxy[0][r+c]>>10))); 
-         }
-    } 
 
-
-
-
-
-
-
-
-//    int c,r = 0;
-//
-//    /*Find Max in x direction*/
-//    for(r=nc *(Border +1);r<nr*nc -nc *(Border + 1);r+= nc){
-//        for(c = Border +1;c< nc- (Border +1);c++){
-//             /*do pointer arithmetics with respect to center pixel location*/
-//            int *p = &avgDxy[2][r+c];
-//            int tmp = avgDxy[2][r+c];
-//            if((tmp<= *(p-6)) &&  (tmp<=*(p+6)) && (tmp<= *(p-5)) && (tmp<= *(p+5)) && (tmp<= *(p-4)) && (tmp<= *(p+4)) &&
-//                (tmp<=*(p-3)) && (tmp<= *(p+3)) && (tmp<=*(p-2)) && (tmp<= *(p+2)) && (tmp<= *(p-1)) && (tmp<= *(p+1))){
-//                avgDxy[0][r+c] = 0;
-//                }
-//
-//            else{
-//                avgDxy[0][r+c]=avgDxy[2][r+c];
-//                }         
-//         }
-//    }  
-//
-///*Find Max in y direction*/
-//   for(r=nc *(Border +1);r<nr*nc -nc *(Border + 1);r+= nc){
-//        for(c = Border +1;c< nc- (Border +1);c++){
-//             /*do pointer arithmetics with respect to center pixel location*/
-//            int *p = &avgDxy[2][r+c];
-//            int tmp = avgDxy[2][r+c];
-//            if((tmp<= *(p-6*nc)) && (tmp<= *(p+6*nc)) && (tmp<= *(p-5*nc)) && (tmp<= *(p+5*nc)) &&  (tmp<= *(p-4*nc)) && (tmp<= *(p+4*nc)) &&
-//                (tmp<=*(p-3*nc)) && (tmp<=*(p+3*nc)) && (tmp<= *(p-2*nc)) && (tmp<=*(p+2*nc)) && (tmp<= *(p-1*nc)) && (tmp<= *(p+1*nc))){
-//                avgDxy[1][r+c] = 0;
-//                }
-//
-//            else{
-//                 avgDxy[1][r+c]=avgDxy[2][r+c];
-//                }  
-//         }
-//             data.u8TempImage[BACKGROUND][r+c] = MAX(0,MIN(255,(avgDxy[2][r+c]>>10))); 
-//
-//    }
+//      data.u8TempImage[BACKGROUND][r+c] = MAX(0,MIN(255,(avgDxy[0][r+c]>>10))); 
+        }
+    }   
 }
-
 
 void drawBoxes(void)
 {
     int r,c = 0;
-
-   for(r=nc *(Border +1);r<nr*nc -nc *(Border + 1);r+= nc){
-        for(c = Border +1;c< nc- (Border +1);c++){       
-             if((avgDxy[0][r+c]>>7)<=(255/100*data.ipc.state.nThreshold)){
-                 avgDxy[1][r+c] = 0;
+    int sizeBox = 5;
+    for(r = nc*(Border +1); r < (nr*nc - nc*(Border+1)); r+= nc){
+        for(c = Border+1; c < (nc - (Border+1)); c++){       
+             if((avgDxy[0][r+c]>>SENSITIVITY) > (255/100*data.ipc.state.nThreshold)){
+                 avgDxy[1][r+c] = 255;
+                 DrawBoundingBox(c - sizeBox,
+                                 (r/nc)-sizeBox,
+                                 c+sizeBox,
+                                 (r/nc)+sizeBox,
+                                 false,
+                                 GREEN);
+                 printf("POS: %i \t%i\n", r/(nc), c);
+                 
              }else{
-                 avgDxy[1][r+c]=255;
-              DrawBoundingBox(r-10,c-10,r+10,c+10,false,GREEN);
+                 avgDxy[1][r+c]=0;
+               
              }
               data.u8TempImage[BACKGROUND][r+c] = MAX(0,MIN(255,(avgDxy[1][r+c])));          
         }
